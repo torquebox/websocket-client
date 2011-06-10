@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-$: << File.dirname(__FILE__) + '/lib'
+$: << File.dirname(__FILE__) + '/../lib'
 
 require 'web_socket_client'
 

@@ -53,6 +53,7 @@ class WebSocketClient
   def disconnect
     @socket.puts 0xFF
     @socket.putc 0x00
+    @close_state = :requested
   end
 
   def send(msg)
