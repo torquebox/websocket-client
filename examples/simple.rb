@@ -7,7 +7,7 @@ require 'web_socket_client'
 #WebSocketClient.connect( 'ws://localhost:8081/websockets/' ) do |client|
 #end
 
-WebSocketClient.new( 'ws://localhost:8081/websockets/' ) do |client|
+WebSocketClient::Client.new( 'ws://localhost:8081/websockets/' ) do |client|
   client.on_message do |msg|
     puts "received #{msg}"
   end
