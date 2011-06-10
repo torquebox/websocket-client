@@ -82,9 +82,11 @@ module WebSocketClient
       @handler_thread = Thread.new(@socket) do |socket|
         msg = ''
         while ( ! socket.eof? )
-          c = socket.getc
-          if ( ! ( Fixnum === c ) )
-            c = c.bytes.to_a.first
+          c = nil
+          if ( socket.respond_to?( :getbyte ) )
+            c = socket.getbyte
+          else
+            c = socket.getc
           end
           if ( c == 0x00 ) 
             if ( @close_state == :half_closed )
