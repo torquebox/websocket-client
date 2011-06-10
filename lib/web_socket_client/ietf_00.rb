@@ -1,5 +1,6 @@
 require 'socket'
 require 'uri'
+require 'digest/md5'
 
 module WebSocketClient
 
@@ -26,6 +27,12 @@ module WebSocketClient
         line = @socket.gets
         break if ( line.strip == '' ) 
       end
+      challenge = @socket.read( 16 ) 
+      if ( challenge == solution )
+        puts "success!"
+      end
+      #dump 'solution', solution
+      #dump 'challenge', challenge
     end
 
     def encode_text_message(msg)
@@ -43,9 +50,17 @@ module WebSocketClient
     end
 
     def solve(key1, key2, key3)
-      int1 = key1.gsub( /[^0-9]/, '' ).to_i / key1.gsub( /[^ ]/, '' ).size
-      int2 = key2.gsub( /[^0-9]/, '' ).to_i / key2.gsub( /[^ ]/, '' ).size
-      [ int1, int2 ].pack( 'CC' ) + key3
+      int1 = solve_header_key( key1 )
+      int2 = solve_header_key( key2 )
+      input = int1.to_s + int2.to_s + key3
+      Digest::MD5.digest( input )
+    end
+
+    def solve_header_key(key)
+      key_digits = key.strip.gsub( /[^0-9]/, '').to_i
+      key_spaces = key.strip.gsub( /[^ ]/, '').size
+      solution = key_digits / key_spaces
+      solution
     end
 
     def generate_header_key
@@ -53,18 +68,21 @@ module WebSocketClient
       1.upto(32) do 
         key << rand(90) + 32
       end
-      1.upto( rand(10) + 1 ) do
-        key[rand(key.size),1] = ' '
+      1.upto( rand(10) + 2 ) do
+        key[rand(key.size-1)+1,1] = ' '
+      end
+      1.upto( rand(10) + 2 ) do
+        key[rand(key.size-1)+1,1] = rand(9).to_s
       end
       key
     end
 
     def generate_content_key
-      key = ''
-      1.upto(8) do 
-        key << rand(52) + 65
+      key = []
+      'tacobob1'.each_byte do |byte|
+        key << byte
       end
-      key
+      key.pack('cccccccc')
     end
 
   end

@@ -35,8 +35,6 @@ module WebSocketClient
     end
   
     def connect(&block)
-      key = "86 753 09"
-
       @socket = TCPSocket.open(uri.host, uri.port)
       @handshake = @handshake_class.new( uri, @socket )
       
