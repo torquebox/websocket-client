@@ -62,7 +62,7 @@ module WebSocketClient
     end
   
     def send(msg)
-      @socket.print @handshake.encode_text_message( msg )
+      @handshake.encode_text_message( msg )
       @socket.flush
     end
 
@@ -83,6 +83,9 @@ module WebSocketClient
         msg = ''
         while ( ! socket.eof? )
           c = socket.getc
+          if ( ! ( Fixnum === c ) )
+            c = c.bytes.to_a.first
+          end
           if ( c == 0x00 ) 
             if ( @close_state == :half_closed )
               socket.close
