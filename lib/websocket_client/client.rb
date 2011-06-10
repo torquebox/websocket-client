@@ -1,10 +1,12 @@
 require 'socket'
 require 'uri'
-require 'web_socket_client/ietf_00'
-
+require 'websocket_client/ietf_00'
 
 
 module WebSocketClient
+
+  DEFAULT_HANDSHAKE = Ietf00
+
   class DebugSocket
     def initialize(socket)
       @socket = socket
@@ -16,10 +18,14 @@ module WebSocketClient
     end
   end
 
+  def self.create(uri,handshake_class=WebSocketClient::DEFAULT_HANDSHAKE,&block)
+    Client.new(uri, handshake_class, &block)
+  end
+
   class Client
     attr_reader :uri
 
-    def initialize(uri,handshake_class=Ietf00, &block)
+    def initialize(uri,handshake_class=WebSocketClient::DEFAULT_HANDSHAKE, &block)
       @handshake_class = handshake_class
       @socket = nil
       @on_message_handler = nil

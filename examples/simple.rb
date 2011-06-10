@@ -2,21 +2,25 @@
 
 $: << File.dirname(__FILE__) + '/../lib'
 
-require 'web_socket_client'
+require 'websocket_client'
 
-#WebSocketClient.connect( 'ws://localhost:8081/websockets/' ) do |client|
-#end
+## Create a disconnected client
+client = WebSocketClient.create( 'ws://localhost:8081/websockets/' ) 
 
-WebSocketClient::Client.new( 'ws://localhost:8081/websockets/' ) do |client|
-  client.on_message do |msg|
-    puts "received #{msg}"
-  end
-
-  client.connect() do |client|
-    puts "sending"
-    client.send( "HOWDY-1" )
-    #client.send( "HOWDY-2" )
-    #client.send( "HOWDY-3" )
-    sleep(1)
-  end
+  ## Set up the message handler before connecting
+client.on_message do |msg|
+  puts "received #{msg}"
 end
+
+## Connect
+client.connect()
+
+## Use the connected client
+puts "sending"
+client.send( "HOWDY-1" )
+client.send( "HOWDY-2" )
+client.send( "HOWDY-3" )
+sleep(1)
+
+## Explicit disconncet
+client.disconnect
