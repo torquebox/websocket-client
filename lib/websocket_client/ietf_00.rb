@@ -7,9 +7,11 @@ module WebSocketClient
   class Ietf00
 
     def initialize(uri, socket)
+      puts "initialize for #{socket}"
       @socket = socket
       key1, key2, key3, solution = generate_keys()
 
+      puts "> sending prolog"
       @socket.puts "GET #{uri.path} HTTP/1.1"
       @socket.puts "Host: #{uri.host}"
       @socket.puts "Connection: upgrade"
@@ -24,15 +26,38 @@ module WebSocketClient
       @socket.flush
       
       while ( ! @socket.eof? ) 
-        line = @socket.gets
+        line = readline( socket )
+        puts ">> #{line}"
         break if ( line.strip == '' ) 
       end
+
       challenge = @socket.read( 16 ) 
+
+      puts "> challenge-response #{challenge}"
       if ( challenge == solution )
         puts "success!"
       end
       #dump 'solution', solution
       #dump 'challenge', challenge
+    end
+
+    def readline(socket)
+      line = ''
+      while ( ! socket.eof? )
+        if ( socket.respond_to? :getbyte )
+          c = socket.getbyte
+        else
+          c = socket.getc
+        end
+        puts "> #{c} #{c.class} #{c == '\n'}"
+
+        line << c
+
+        if ( c == 10 )
+          break
+        end
+      end
+      line
     end
 
     def encode_text_message(msg)

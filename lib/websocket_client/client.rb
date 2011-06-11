@@ -29,6 +29,7 @@ module WebSocketClient
       @handshake_class = handshake_class
       @socket = nil
       @on_message_handler = nil
+      @on_disconnect_handler = nil
       @handler_thread = nil
       @close_state = nil
       case ( uri )
@@ -42,7 +43,9 @@ module WebSocketClient
   
     def connect(&block)
       @socket = TCPSocket.open(uri.host, uri.port)
+      puts "> handshaking"
       @handshake = @handshake_class.new( uri, @socket )
+      puts "> handshook"
       
       start_handler
   
@@ -74,13 +77,24 @@ module WebSocketClient
       if ( block ) 
         @on_message_handler = block
       else
+        puts "> on_message #{msg}"
         @on_message_handler.call( msg ) if @on_message_handler
+      end
+    end
+
+    def on_disconnect(&block)
+      if ( block )
+        @on_disconnect_handler = block
+      else
+        puts "> on_disconnect"
+        @on_disconnect_handler.call( msg ) if @on_disconnect_handler
       end
     end
   
     def start_handler
       @handler_thread = Thread.new(@socket) do |socket|
         msg = ''
+        msg_state = :none
         while ( ! socket.eof? )
           c = nil
           if ( socket.respond_to?( :getbyte ) )
@@ -88,26 +102,43 @@ module WebSocketClient
           else
             c = socket.getc
           end
+          puts "> #{c} #{c.class} #{c == 0xff}"
           if ( c == 0x00 ) 
-            if ( @close_state == :half_closed )
+            if ( msg_state == :half_closed )
+              puts "> full-closed by server"
               socket.close
-              break;
+              break
             else
-              msg = ''
+              if ( @close_state == :half_closed )
+                socket.close
+                break
+              else
+                msg = ''
+                msg_state = :none
+              end
             end
           elsif ( c == 0xFF ) 
-            if ( @close_state == :requested )
-              @close_state = :half_closed
+            if ( msg_state == :none )
+              msg_state = :half_closed
+              puts "> half-closed by server"
             else
-              on_message( msg ) 
+              if ( @close_state == :requested )
+                @close_state = :half_closed
+              else
+                on_message( msg ) 
+                msg = ''
+                msg_state = :none
+              end
             end
           else
             if ( @close_state != nil )
               @close_state = nil
             end
+            msg_state = :in_progress
             msg << c
           end
         end
+        on_disconnect
       end
     end
   
