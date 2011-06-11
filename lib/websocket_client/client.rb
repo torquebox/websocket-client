@@ -113,7 +113,6 @@ module WebSocketClient
                 socket.close
                 break
               else
-                msg = ''
                 msg_state = :none
               end
             end

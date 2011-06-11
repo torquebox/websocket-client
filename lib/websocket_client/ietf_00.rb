@@ -31,7 +31,7 @@ module WebSocketClient
         break if ( line.strip == '' ) 
       end
 
-      challenge = @socket.read( 16 ) 
+      challenge = readline( socket ).strip
 
       puts "> challenge-response #{challenge}"
       if ( challenge == solution )
