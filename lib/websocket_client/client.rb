@@ -1,22 +1,12 @@
 require 'socket'
 require 'uri'
 require 'websocket_client/ietf_00'
+require 'websocket_client/frame_io'
 
 
 module WebSocketClient
 
   DEFAULT_HANDSHAKE = Ietf00
-
-  class DebugSocket
-    def initialize(socket)
-      @socket = socket
-    end
-
-    def method_missing(method, *args)
-      puts "> #{method}(#{args.join( ', ')})"
-      @socket.__send__( method, *args )
-    end
-  end
 
   def self.create(uri,handshake_class=WebSocketClient::DEFAULT_HANDSHAKE,&block)
     Client.new(uri, handshake_class, &block)
@@ -25,30 +15,41 @@ module WebSocketClient
   class Client
     attr_reader :uri
 
+    attr_reader :source
+    attr_reader :sink
+
     def initialize(uri,handshake_class=WebSocketClient::DEFAULT_HANDSHAKE, &block)
-      @handshake_class = handshake_class
-      @socket = nil
-      @on_message_handler = nil
+      @handshake_class       = handshake_class
+      @on_message_handler    = nil
       @on_disconnect_handler = nil
-      @handler_thread = nil
-      @close_state = nil
-      case ( uri )
-        when String
-          @uri = URI.parse( uri )
-        else
-          @uri = uri
-      end
+      @handler_thread        = nil
+      @uri                   = cleanse_uri( uri )
+
       block.call( self ) if block
+    end
+
+    def cleanse_uri(uri)
+      return URI.parse( uri ) if ( String === uri )
+      uri
     end
   
     def connect(&block)
-      @socket = TCPSocket.open(uri.host, uri.port)
-      puts "> handshaking"
-      @handshake = @handshake_class.new( uri, @socket )
-      puts "> handshook"
-      
+      socket = TCPSocket.open(uri.host, uri.port)
+      @source = SocketByteSource.new( socket )
+      @sink   = SocketByteSink.new( socket )
+      @handshake = @handshake_class.new( uri, @source, @sink )
+
+      internal_connect(source, sink, &block)
+      run_client
+    end
+
+    def internal_connect(source, sink, &block)
+      @frame_reader = FrameReader.new( source )
+      @frame_writer = FrameWriter.new( sink )
+    end
+
+    def run_client()
       start_handler
-  
       if ( block )
         begin
           block.call( self ) 
@@ -59,14 +60,11 @@ module WebSocketClient
     end
   
     def disconnect
-      @socket.puts 0xFF
-      @socket.putc 0x00
-      @close_state = :requested
+      @frame_writer.write_close_frame() 
     end
   
-    def send(msg)
-      @handshake.encode_text_message( msg )
-      @socket.flush
+    def send(text)
+      @frame_writer.write_as_text_frame( text )
     end
 
     def wait_forever()
@@ -87,58 +85,27 @@ module WebSocketClient
         @on_disconnect_handler = block
       else
         puts "> on_disconnect"
-        @on_disconnect_handler.call( msg ) if @on_disconnect_handler
+        @on_disconnect_handler.call() if @on_disconnect_handler
       end
     end
   
     def start_handler
-      @handler_thread = Thread.new(@socket) do |socket|
-        msg = ''
-        msg_state = :none
-        while ( ! socket.eof? )
-          c = nil
-          if ( socket.respond_to?( :getbyte ) )
-            c = socket.getbyte
-          else
-            c = socket.getc
-          end
-          puts "> #{c} #{c.class} #{c == 0xff}"
-          if ( c == 0x00 ) 
-            if ( msg_state == :half_closed )
-              puts "> full-closed by server"
-              socket.close
-              break
-            else
-              if ( @close_state == :half_closed )
-                socket.close
-                break
-              else
-                msg_state = :none
-              end
-            end
-          elsif ( c == 0xFF ) 
-            if ( msg_state == :none )
-              msg_state = :half_closed
-              puts "> half-closed by server"
-            else
-              if ( @close_state == :requested )
-                @close_state = :half_closed
-              else
-                on_message( msg ) 
-                msg = ''
-                msg_state = :none
-              end
-            end
-          else
-            if ( @close_state != nil )
-              @close_state = nil
-            end
-            msg_state = :in_progress
-            msg << c
-          end
-        end
-        on_disconnect
+      @handler_thread = Thread.new() do
+        handler_loop
       end
+    end
+
+    def run_handler_loop
+      while ( ! @frame_reader.eof? )
+        frame = @frame_reader.read_frame
+        case ( frame.type )
+          when :text
+            on_message( frame.text )
+          when :close
+            break
+        end
+      end
+      on_disconnect
     end
   
   end

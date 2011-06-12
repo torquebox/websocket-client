@@ -16,6 +16,10 @@ module WebSocketClient
       :text
     end
 
+    def bytes
+      [ 0x00, @text.bytes.to_a, 0xFF ].flatten
+    end
+
   end
 
   class CloseFrame
@@ -23,6 +27,10 @@ module WebSocketClient
 
     def type
       :close
+    end
+
+    def bytes
+      [ 0xFF, 0x00 ]
     end
 
     private
@@ -39,19 +47,19 @@ module WebSocketClient
       @debug = debug
     end
 
+    def write_close_frame()
+      write_frame( CloseFrame::INSTANCE )
+    end
+
+    def write_as_text_frame(text)
+      write_frame( TextFrame.new( text ) )
+    end
+
     def write_frame(frame)
-      case ( frame )
-        when TextFrame:
-          @sink.write( 0x00 )
-          frame.text.bytes.each do |b|
-            @sink.write( b )
-          end
-          @sink.write( 0xFF )
-        when CloseFrame:
-          puts "> writing close frame" if debug
-          @sink.write( 0xFF )
-          @sink.write( 0x00 )
+      frame.bytes.each do |b|
+        @sink.write( b )
       end
+      @sink.flush
     end
   end
 
@@ -63,6 +71,10 @@ module WebSocketClient
     def initialize(source,debug=false)
       @source = source
       @debug = debug
+    end
+
+    def eof?
+      @source.eof?
     end
 
     def read_frame()
