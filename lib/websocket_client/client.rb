@@ -67,7 +67,7 @@ module WebSocketClient
       @frame_writer.write_as_text_frame( text )
     end
 
-    def wait_forever()
+    def wait_for_disconnect()
       @handler_thread.join
     end
 
