@@ -12,35 +12,33 @@ module WebSocketClient
       def initialize(uri, source, sink)
         @source = source
         @sink   = sink
+        perform_http_prolog(uri)
       end
 
-      def perform_http_prolog()
+      def perform_http_prolog(uri)
         key1, key2, key3, solution = generate_keys()
   
-        puts "> sending prolog"
-        source.write_line "GET #{uri.path} HTTP/1.1"
-        source.write_line "Host: #{uri.host}"
-        source.write_line "Connection: upgrade"
-        source.write_line "Upgrade: websocket"
-        source.write_line "Origin: http://#{uri.host}/"
-        source.write_line "Sec-WebSocket-Key1: #{key1}"
-        source.write_line "Sec-WebSocket-Key2: #{key2}"
-        source.write_line ""
-        source.write_line key3
-        source.flush
+        sink.write_line "GET #{uri.path} HTTP/1.1"
+        sink.write_line "Host: #{uri.host}"
+        sink.write_line "Connection: upgrade"
+        sink.write_line "Upgrade: websocket"
+        sink.write_line "Origin: http://#{uri.host}/"
+        sink.write_line "Sec-WebSocket-Key1: #{key1}"
+        sink.write_line "Sec-WebSocket-Key2: #{key2}"
+        sink.write_line ""
+        sink.write_line key3
+        sink.flush
         
         while ( ! source.eof? ) 
           line = source.getline
-          puts ">> #{line}"
           break if ( line.strip == '' ) 
         end
   
         challenge = source.getbytes( 16 ) 
         source.getline
   
-        puts "> challenge-response #{challenge}"
         if ( challenge == solution )
-          puts "success!"
+          #
         end
       end
   
@@ -55,7 +53,7 @@ module WebSocketClient
         int1 = solve_header_key( key1 )
         int2 = solve_header_key( key2 )
         input = int1.to_s + int2.to_s + key3
-        Digest::MD5.digest( input )
+        Digest::MD5.digest( input ).bytes.to_a
       end
   
       def solve_header_key(key)
@@ -80,7 +78,7 @@ module WebSocketClient
       end
   
       def generate_content_key
-        'tacobob1'.bytes.to_a
+        'tacobob1'
       end
   
     end

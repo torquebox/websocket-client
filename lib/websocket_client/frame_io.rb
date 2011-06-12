@@ -68,7 +68,7 @@ module WebSocketClient
     attr_reader :source
     attr_accessor :debug
 
-    def initialize(source,debug=false)
+    def initialize(source,debug=true)
       @source = source
       @debug = debug
     end
@@ -82,7 +82,6 @@ module WebSocketClient
       state = :none
       while ( ! source.eof? )
         b = source.getbyte
-        puts "> [#{b}]" if debug
         case ( b )
           when 0x00
             if ( state == :half_closed )
@@ -93,7 +92,6 @@ module WebSocketClient
             if ( ! buffer.nil? )
                return TextFrame.new( buffer )
             else
-              puts "> half closed" if debug
               state = :half_closed
             end
           else

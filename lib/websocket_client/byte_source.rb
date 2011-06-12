@@ -41,19 +41,17 @@ module WebSocketClient
       while ( ! eof? )
         b = getbyte 
         case ( b )
-          when 0x0D: # carriage-return
+          when 0x0D then # carriage-return
             if peekbyte == 0x0A # newline
               getbyte # consume it also
             end
-            puts "break with #{line}"
             break
-          when 0x0A: # newline
+          when 0x0A then # newline
             break
           else
             line << b
         end
       end
-      puts "line #{line}"
       return line
     end
   

@@ -1,12 +1,12 @@
 require 'socket'
 require 'uri'
-require 'websocket_client/ietf_00'
 require 'websocket_client/frame_io'
+require 'websocket_client/protocol/ietf_00'
 
 
 module WebSocketClient
 
-  DEFAULT_HANDSHAKE = Ietf00
+  DEFAULT_HANDSHAKE = Protocol::Ietf00
 
   def self.create(uri,handshake_class=WebSocketClient::DEFAULT_HANDSHAKE,&block)
     Client.new(uri, handshake_class, &block)
@@ -39,29 +39,30 @@ module WebSocketClient
       @sink   = SocketByteSink.new( socket )
       @handshake = @handshake_class.new( uri, @source, @sink )
 
-      internal_connect(source, sink, &block)
-      run_client
+      internal_connect(source, sink)
+      run_client( &block )
     end
 
-    def internal_connect(source, sink, &block)
+    def internal_connect(source, sink)
       @frame_reader = FrameReader.new( source )
       @frame_writer = FrameWriter.new( sink )
     end
 
-    def run_client()
+    def run_client(&block)
       on_connect
       start_handler
       if ( block )
         begin
-          block.call( self ) 
+            block.call( self ) 
         ensure
           disconnect()
         end
       end
     end
   
-    def disconnect
+    def disconnect(wait_for=false)
       @frame_writer.write_close_frame() 
+      wait_for_disconnect if wait_for
     end
   
     def send(text)
@@ -76,7 +77,6 @@ module WebSocketClient
       if ( block )
         @on_connect_handler = block
       else
-        puts "> on connect"
         @on_connect_handler.call() if @on_connect_handler
       end
     end
@@ -85,7 +85,6 @@ module WebSocketClient
       if ( block ) 
         @on_message_handler = block
       else
-        puts "> on_message #{msg}"
         @on_message_handler.call( msg ) if @on_message_handler
       end
     end
@@ -94,14 +93,13 @@ module WebSocketClient
       if ( block )
         @on_disconnect_handler = block
       else
-        puts "> on_disconnect"
         @on_disconnect_handler.call() if @on_disconnect_handler
       end
     end
   
     def start_handler
       @handler_thread = Thread.new() do
-        handler_loop
+        run_handler_loop
       end
     end
 

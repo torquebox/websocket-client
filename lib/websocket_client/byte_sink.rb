@@ -23,6 +23,10 @@ module WebSocketClient
       @socket = socket
     end
 
+    def write(byte)
+      @socket.putc( byte )
+    end
+
     def flush
       @socket.flush
     end
