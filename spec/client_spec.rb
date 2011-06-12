@@ -55,7 +55,7 @@ describe WebSocketClient::Client do
     @disconnect.should be_true
   end
 
-  it "should send a correct close frame upon closure" do
+  it "should send a text frame correctly" do
     sink = WebSocketClient::ArrayByteSink.new
 
     client = WebSocketClient::Client.new( nil ) 
