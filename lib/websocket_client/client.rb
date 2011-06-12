@@ -49,6 +49,7 @@ module WebSocketClient
     end
 
     def run_client()
+      on_connect
       start_handler
       if ( block )
         begin
@@ -69,6 +70,15 @@ module WebSocketClient
 
     def wait_for_disconnect()
       @handler_thread.join
+    end
+
+    def on_connect(&block)
+      if ( block )
+        @on_connect_handler = block
+      else
+        puts "> on connect"
+        @on_connect_handler.call() if @on_connect_handler
+      end
     end
 
     def on_message(msg=nil,&block)
