@@ -35,7 +35,7 @@ module WebSocketClient
   
     def connect(&block)
       socket = TCPSocket.open(uri.host, uri.port)
-      @source = SocketByteSource.new( socket )
+      @source = BufferedByteSource.new( SocketByteSource.new( socket ) )
       @sink   = SocketByteSink.new( socket )
       @handshake = @handshake_class.new( uri, @source, @sink )
 
